@@ -8,30 +8,71 @@ export class Airport {
   private buildings: THREE.Group;
   private terrain: THREE.Mesh;
   private runwayLights: THREE.PointLight[];
+  private controlTower: THREE.Group;
+  private hangars: THREE.Group;
   
   constructor(scene: THREE.Scene) {
     this.scene = scene;
     this.runway = new THREE.Group();
     this.buildings = new THREE.Group();
+    this.hangars = new THREE.Group();
+    this.controlTower = new THREE.Group();
     this.runwayLights = [];
+    
+    // Initialize terrain with a default mesh to avoid linter errors
+    this.terrain = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ color: 0x000000 })
+    );
     
     this.createTerrain();
     this.createRunway();
     this.createBuildings();
+    this.createControlTower();
+    this.createHangars();
     this.createRunwayLights();
     
     scene.add(this.runway);
     scene.add(this.buildings);
+    scene.add(this.controlTower);
+    scene.add(this.hangars);
     scene.add(this.terrain);
   }
   
   private createTerrain(): void {
-    // Create a large flat terrain
-    const terrainGeometry = new THREE.PlaneGeometry(1000, 1000);
+    // Create a large flat terrain with texture
+    const terrainGeometry = new THREE.PlaneGeometry(1000, 1000, 50, 50);
+    
+    // Create a canvas for the terrain texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const context = canvas.getContext('2d');
+    
+    if (context) {
+      // Fill with base grass color
+      context.fillStyle = '#4CAF50';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Add some texture to make it more interesting
+      for (let i = 0; i < 5000; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const size = Math.random() * 3 + 1;
+        const color = Math.random() > 0.5 ? '#3E8E41' : '#5CBF60';
+        context.fillStyle = color;
+        context.fillRect(x, y, size, size);
+      }
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 4);
+    
     const terrainMaterial = new THREE.MeshStandardMaterial({
-      color: 0x4CAF50, // Green grass
+      map: texture,
       roughness: 0.8,
-      metalness: 0.2,
+      metalness: 0.1,
     });
     
     this.terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
@@ -45,9 +86,35 @@ export class Airport {
     const runwayLength = 200;
     const runwayWidth = 20;
     
-    const runwayGeometry = new THREE.PlaneGeometry(runwayWidth, runwayLength);
+    // Create a more detailed runway texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const context = canvas.getContext('2d');
+    
+    if (context) {
+      // Dark asphalt background
+      context.fillStyle = '#333333';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Add subtle texture/grain
+      for (let i = 0; i < 20000; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const size = Math.random() * 2 + 0.5;
+        const gray = Math.floor(Math.random() * 20 + 40);
+        context.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+        context.fillRect(x, y, size, size);
+      }
+    }
+    
+    const runwayTexture = new THREE.CanvasTexture(canvas);
+    runwayTexture.wrapS = runwayTexture.wrapT = THREE.RepeatWrapping;
+    runwayTexture.repeat.set(1, 10);
+    
+    const runwayGeometry = new THREE.PlaneGeometry(runwayWidth, runwayLength, 1, 10);
     const runwayMaterial = new THREE.MeshStandardMaterial({
-      color: 0x333333, // Dark gray asphalt
+      map: runwayTexture,
       roughness: 0.7,
       metalness: 0.1,
     });
@@ -248,80 +315,251 @@ export class Airport {
   }
   
   private createBuildings(): void {
-    // Create control tower
-    const towerBaseGeometry = new THREE.BoxGeometry(10, 15, 10);
-    const towerTopGeometry = new THREE.CylinderGeometry(6, 8, 5, 8);
-    const buildingMaterial = new THREE.MeshStandardMaterial({
-      color: 0xE0E0E0, // Light gray
-      roughness: 0.7,
-      metalness: 0.3,
-    });
-    const glassMaterial = new THREE.MeshStandardMaterial({
-      color: 0x88CCFF, // Light blue
+    // Create more varied airport buildings
+    this.createTerminalBuilding();
+    this.createAuxiliaryBuildings();
+    this.createParkingLot();
+  }
+  
+  private createTerminalBuilding(): void {
+    // Main terminal building
+    const terminalWidth = 40;
+    const terminalHeight = 15;
+    const terminalDepth = 25;
+    
+    const terminalGeometry = new THREE.BoxGeometry(terminalWidth, terminalHeight, terminalDepth);
+    
+    // Create a texture for the terminal windows
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const context = canvas.getContext('2d');
+    
+    if (context) {
+      context.fillStyle = '#D3D3D3'; // Light gray
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw windows
+      context.fillStyle = '#87CEEB'; // Sky blue for glass
+      const windowSize = 40;
+      const windowSpacing = 60;
+      
+      for (let x = 10; x < canvas.width; x += windowSpacing) {
+        for (let y = 10; y < canvas.height; y += windowSpacing) {
+          context.fillRect(x, y, windowSize, windowSize);
+        }
+      }
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 2);
+    
+    const terminalMaterial = new THREE.MeshStandardMaterial({
+      map: texture,
       roughness: 0.2,
       metalness: 0.8,
-      transparent: true,
-      opacity: 0.7,
-    });
-    
-    // Tower base
-    const towerBase = new THREE.Mesh(towerBaseGeometry, buildingMaterial);
-    towerBase.position.set(40, 7.5, -30);
-    towerBase.castShadow = true;
-    towerBase.receiveShadow = true;
-    
-    // Tower top (control room)
-    const towerTop = new THREE.Mesh(towerTopGeometry, glassMaterial);
-    towerTop.position.set(40, 17.5, -30);
-    towerTop.castShadow = true;
-    
-    this.buildings.add(towerBase);
-    this.buildings.add(towerTop);
-    
-    // Create terminal building
-    const terminalGeometry = new THREE.BoxGeometry(60, 10, 20);
-    const terminalMaterial = new THREE.MeshStandardMaterial({
-      color: 0xBDBDBD, // Gray
-      roughness: 0.7,
-      metalness: 0.3,
     });
     
     const terminal = new THREE.Mesh(terminalGeometry, terminalMaterial);
-    terminal.position.set(60, 5, -50);
+    terminal.position.set(50, terminalHeight / 2, -40);
     terminal.castShadow = true;
     terminal.receiveShadow = true;
     
     this.buildings.add(terminal);
     
-    // Create hangar
-    const hangarBaseGeometry = new THREE.BoxGeometry(30, 10, 25);
-    const hangarRoofGeometry = new THREE.CylinderGeometry(12.5, 12.5, 30, 16, 1, false, 0, Math.PI);
+    // Terminal roof
+    const roofGeometry = new THREE.BoxGeometry(terminalWidth + 5, 2, terminalDepth + 5);
+    const roofMaterial = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      roughness: 0.8,
+      metalness: 0.2,
+    });
     
-    const hangarBase = new THREE.Mesh(hangarBaseGeometry, buildingMaterial);
-    hangarBase.position.set(50, 5, 20);
-    hangarBase.castShadow = true;
-    hangarBase.receiveShadow = true;
+    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+    roof.position.set(50, terminalHeight + 1, -40);
+    roof.castShadow = true;
     
-    const hangarRoof = new THREE.Mesh(hangarRoofGeometry, buildingMaterial);
-    hangarRoof.rotation.z = Math.PI / 2;
-    hangarRoof.rotation.y = Math.PI / 2;
-    hangarRoof.position.set(50, 10, 20);
-    hangarRoof.castShadow = true;
+    this.buildings.add(roof);
+  }
+  
+  private createControlTower(): void {
+    // Base of the control tower
+    const baseGeometry = new THREE.CylinderGeometry(6, 8, 30, 16);
+    const baseMaterial = new THREE.MeshStandardMaterial({
+      color: 0xCECECE,
+      roughness: 0.5,
+      metalness: 0.3,
+    });
     
-    this.buildings.add(hangarBase);
-    this.buildings.add(hangarRoof);
+    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+    base.position.set(30, 15, -80);
+    base.castShadow = true;
+    base.receiveShadow = true;
     
-    // Create smaller buildings
-    for (let i = 0; i < 5; i++) {
-      const size = 5 + Math.random() * 10;
-      const height = 5 + Math.random() * 10;
-      const buildingGeometry = new THREE.BoxGeometry(size, height, size);
+    this.controlTower.add(base);
+    
+    // Tower cabin (top part)
+    const cabinGeometry = new THREE.CylinderGeometry(10, 7, 8, 8);
+    
+    // Create a texture for the control tower windows
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    
+    if (context) {
+      context.fillStyle = '#666666';
+      context.fillRect(0, 0, canvas.width, canvas.height);
       
-      const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+      // Create a continuous window band
+      context.fillStyle = '#87CEFA';
+      context.fillRect(0, 20, canvas.width, 80);
+      
+      // Add window frames
+      context.strokeStyle = '#FFFFFF';
+      context.lineWidth = 2;
+      for (let x = 0; x < canvas.width; x += 64) {
+        context.beginPath();
+        context.moveTo(x, 20);
+        context.lineTo(x, 100);
+        context.stroke();
+      }
+    }
+    
+    const cabinTexture = new THREE.CanvasTexture(canvas);
+    cabinTexture.wrapS = THREE.RepeatWrapping;
+    cabinTexture.repeat.set(1, 1);
+    
+    const cabinMaterial = new THREE.MeshStandardMaterial({
+      map: cabinTexture,
+      roughness: 0.2,
+      metalness: 0.8,
+    });
+    
+    const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
+    cabin.position.set(0, 20, 0);
+    cabin.castShadow = true;
+    
+    this.controlTower.add(cabin);
+    
+    // Tower roof
+    const roofGeometry = new THREE.ConeGeometry(10, 5, 8);
+    const roofMaterial = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      roughness: 0.7,
+      metalness: 0.3,
+    });
+    
+    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+    roof.position.set(0, 26, 0);
+    roof.castShadow = true;
+    
+    this.controlTower.add(roof);
+    
+    // Antenna on top
+    const antennaGeometry = new THREE.CylinderGeometry(0.2, 0.2, 10, 8);
+    const antennaMaterial = new THREE.MeshStandardMaterial({
+      color: 0xCCCCCC,
+      roughness: 0.3,
+      metalness: 0.9,
+    });
+    
+    const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+    antenna.position.set(0, 33, 0);
+    antenna.castShadow = true;
+    
+    this.controlTower.add(antenna);
+  }
+  
+  private createHangars(): void {
+    // Create a few aircraft hangars
+    for (let i = 0; i < 3; i++) {
+      const hangarWidth = 20;
+      const hangarHeight = 12;
+      const hangarDepth = 25;
+      
+      // Hangar body
+      const hangarGeometry = new THREE.BoxGeometry(hangarWidth, hangarHeight, hangarDepth);
+      const hangarMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8B4513, // Brown
+        roughness: 0.7,
+        metalness: 0.2,
+      });
+      
+      const hangar = new THREE.Mesh(hangarGeometry, hangarMaterial);
+      hangar.position.set(-50 + i * 30, hangarHeight / 2, -80);
+      hangar.castShadow = true;
+      hangar.receiveShadow = true;
+      
+      this.hangars.add(hangar);
+      
+      // Hangar roof (arched)
+      const archSegments = 8;
+      const archRadius = hangarWidth / 2;
+      const archGeometry = new THREE.BufferGeometry();
+      const archVertices = [];
+      const archIndices = [];
+      
+      // Create arch points
+      for (let j = 0; j <= archSegments; j++) {
+        const angle = (Math.PI / archSegments) * j;
+        const x = Math.cos(angle) * archRadius;
+        const y = Math.sin(angle) * archRadius + hangarHeight;
+        
+        // Front and back points
+        archVertices.push(x, y, hangarDepth / 2);
+        archVertices.push(x, y, -hangarDepth / 2);
+      }
+      
+      // Create faces
+      for (let j = 0; j < archSegments; j++) {
+        const v0 = j * 2;
+        const v1 = v0 + 1;
+        const v2 = v0 + 2;
+        const v3 = v0 + 3;
+        
+        // Two triangles per segment
+        archIndices.push(v0, v2, v1);
+        archIndices.push(v1, v2, v3);
+      }
+      
+      archGeometry.setAttribute('position', new THREE.Float32BufferAttribute(archVertices, 3));
+      archGeometry.setIndex(archIndices);
+      archGeometry.computeVertexNormals();
+      
+      const archMaterial = new THREE.MeshStandardMaterial({
+        color: 0x666666, // Dark gray
+        roughness: 0.6,
+        metalness: 0.4,
+      });
+      
+      const arch = new THREE.Mesh(archGeometry, archMaterial);
+      arch.position.set(-50 + i * 30, 0, -80);
+      arch.castShadow = true;
+      
+      this.hangars.add(arch);
+    }
+  }
+  
+  private createAuxiliaryBuildings(): void {
+    // Small auxiliary buildings
+    for (let i = 0; i < 4; i++) {
+      const size = 5 + Math.random() * 5;
+      const height = 3 + Math.random() * 3;
+      
+      const geometry = new THREE.BoxGeometry(size, height, size);
+      const material = new THREE.MeshStandardMaterial({
+        color: Math.random() > 0.5 ? 0xA9A9A9 : 0xD3D3D3,
+        roughness: 0.7,
+        metalness: 0.2,
+      });
+      
+      const building = new THREE.Mesh(geometry, material);
       building.position.set(
-        70 + Math.random() * 30 - 15,
+        20 - Math.random() * 60,
         height / 2,
-        -80 + Math.random() * 60
+        -150 + Math.random() * 150
       );
       building.castShadow = true;
       building.receiveShadow = true;
@@ -330,97 +568,148 @@ export class Airport {
     }
   }
   
-  private createRunwayLights(): void {
-    // Create runway edge lights
-    const runwayLength = 200;
-    const runwayWidth = 20;
-    const lightSpacing = 10;
-    const lightCount = Math.floor(runwayLength / lightSpacing);
+  private createParkingLot(): void {
+    // Parking lot
+    const parkingLotWidth = 50;
+    const parkingLotLength = 30;
     
-    for (let i = 0; i < lightCount; i++) {
-      // Left edge lights
-      const leftLight = new THREE.PointLight(0xFFFFFF, 0.5, 10);
-      leftLight.position.set(-runwayWidth / 2, 0.5, -i * lightSpacing);
-      this.scene.add(leftLight);
-      this.runwayLights.push(leftLight);
+    const parkingGeometry = new THREE.PlaneGeometry(parkingLotWidth, parkingLotLength);
+    
+    // Create a texture for the parking lot with spaces
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const context = canvas.getContext('2d');
+    
+    if (context) {
+      // Asphalt background
+      context.fillStyle = '#444444';
+      context.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Create a small sphere to represent the light fixture
-      const leftLightMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.2, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
-      );
-      leftLightMesh.position.copy(leftLight.position);
-      this.scene.add(leftLightMesh);
+      // Parking spaces
+      context.strokeStyle = '#FFFFFF';
+      context.lineWidth = 2;
       
-      // Right edge lights
-      const rightLight = new THREE.PointLight(0xFFFFFF, 0.5, 10);
-      rightLight.position.set(runwayWidth / 2, 0.5, -i * lightSpacing);
-      this.scene.add(rightLight);
-      this.runwayLights.push(rightLight);
+      const spaceWidth = 40;
+      const spaceHeight = 80;
       
-      // Create a small sphere to represent the light fixture
-      const rightLightMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.2, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
-      );
-      rightLightMesh.position.copy(rightLight.position);
-      this.scene.add(rightLightMesh);
+      for (let x = 20; x < canvas.width - 100; x += spaceWidth + 10) {
+        for (let y = 20; y < canvas.height - 20; y += spaceHeight + 20) {
+          context.strokeRect(x, y, spaceWidth, spaceHeight);
+        }
+      }
     }
     
-    // Create approach lights (red)
-    for (let i = 1; i <= 5; i++) {
-      const approachLight = new THREE.PointLight(0xFF0000, 0.8, 15);
-      approachLight.position.set(0, 0.5, -runwayLength - i * 5);
-      this.scene.add(approachLight);
-      this.runwayLights.push(approachLight);
+    const parkingTexture = new THREE.CanvasTexture(canvas);
+    
+    const parkingMaterial = new THREE.MeshStandardMaterial({
+      map: parkingTexture,
+      roughness: 0.9,
+      metalness: 0.1,
+    });
+    
+    const parking = new THREE.Mesh(parkingGeometry, parkingMaterial);
+    parking.rotation.x = -Math.PI / 2;
+    parking.position.set(80, 0.01, -40); // Slightly above the ground
+    parking.receiveShadow = true;
+    
+    this.buildings.add(parking);
+  }
+  
+  private createRunwayLights(): void {
+    // Enhanced runway lighting
+    const runwayLength = 200;
+    const runwayWidth = 20;
+    
+    // Edge lights
+    const lightCount = 40;
+    const lightSpacing = runwayLength / lightCount;
+    
+    // Light geometry (small cylinder for the base)
+    const lightBaseGeometry = new THREE.CylinderGeometry(0.2, 0.3, 0.3, 8);
+    const lightBaseMaterial = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      roughness: 0.8,
+      metalness: 0.5,
+    });
+    
+    // Create lights on both sides of the runway
+    for (let i = 0; i < lightCount; i++) {
+      // Position on the runway
+      const z = -i * lightSpacing;
       
-      // Create a small sphere to represent the light fixture
-      const approachLightMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xFF0000 })
-      );
-      approachLightMesh.position.copy(approachLight.position);
-      this.scene.add(approachLightMesh);
+      // Left side light
+      const leftLightBase = new THREE.Mesh(lightBaseGeometry, lightBaseMaterial);
+      leftLightBase.position.set(-runwayWidth / 2 - 1, 0.15, z);
+      this.runway.add(leftLightBase);
+      
+      const leftLight = new THREE.PointLight(0xFFFFFF, 0.4, 10);
+      leftLight.position.set(-runwayWidth / 2 - 1, 0.5, z);
+      this.runway.add(leftLight);
+      this.runwayLights.push(leftLight);
+      
+      // Right side light
+      const rightLightBase = new THREE.Mesh(lightBaseGeometry, lightBaseMaterial);
+      rightLightBase.position.set(runwayWidth / 2 + 1, 0.15, z);
+      this.runway.add(rightLightBase);
+      
+      const rightLight = new THREE.PointLight(0xFFFFFF, 0.4, 10);
+      rightLight.position.set(runwayWidth / 2 + 1, 0.5, z);
+      this.runway.add(rightLight);
+      this.runwayLights.push(rightLight);
+    }
+    
+    // Approach lights (brighter at the start of the runway)
+    for (let i = 1; i <= 5; i++) {
+      const approachLightBase = new THREE.Mesh(lightBaseGeometry, lightBaseMaterial);
+      approachLightBase.position.set(0, 0.15, i * 5);
+      this.runway.add(approachLightBase);
+      
+      const approachLight = new THREE.PointLight(0xFFFFFF, 0.6, 15);
+      approachLight.position.set(0, 0.5, i * 5);
+      this.runway.add(approachLight);
+      this.runwayLights.push(approachLight);
     }
   }
   
   public dispose(): void {
     // Dispose of all geometries and materials
-    this.runway.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.geometry.dispose();
-        if (child.material instanceof THREE.Material) {
-          child.material.dispose();
-        } else if (Array.isArray(child.material)) {
-          child.material.forEach(material => material.dispose());
-        }
-      }
-    });
-    
-    this.buildings.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.geometry.dispose();
-        if (child.material instanceof THREE.Material) {
-          child.material.dispose();
-        } else if (Array.isArray(child.material)) {
-          child.material.forEach(material => material.dispose());
-        }
-      }
-    });
+    this.disposeObject(this.runway);
+    this.disposeObject(this.buildings);
+    this.disposeObject(this.controlTower);
+    this.disposeObject(this.hangars);
     
     if (this.terrain.geometry) this.terrain.geometry.dispose();
     if (this.terrain.material instanceof THREE.Material) {
       this.terrain.material.dispose();
     }
     
-    // Remove lights
+    this.scene.remove(this.runway);
+    this.scene.remove(this.buildings);
+    this.scene.remove(this.controlTower);
+    this.scene.remove(this.hangars);
+    this.scene.remove(this.terrain);
+    
     this.runwayLights.forEach(light => {
       this.scene.remove(light);
     });
-    
-    // Remove objects from scene
-    this.scene.remove(this.runway);
-    this.scene.remove(this.buildings);
-    this.scene.remove(this.terrain);
+  }
+  
+  private disposeObject(object: THREE.Object3D): void {
+    object.children.forEach(child => {
+      if (child instanceof THREE.Mesh) {
+        if (child.geometry) child.geometry.dispose();
+        
+        if (child.material instanceof THREE.Material) {
+          child.material.dispose();
+        } else if (Array.isArray(child.material)) {
+          child.material.forEach(material => material.dispose());
+        }
+      }
+      
+      if (child.children.length > 0) {
+        this.disposeObject(child);
+      }
+    });
   }
 }

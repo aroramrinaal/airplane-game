@@ -5,7 +5,6 @@ import * as THREE from 'three';
 import { SkyEnvironment } from './SkyEnvironment';
 import { Airplane } from './entities/Airplane';
 import { Obstacle } from './entities/Obstacle';
-import { Collectible } from './entities/Collectible';
 import { Airport } from './entities/Airport';
 import { ControlBox } from './ui/ControlBox';
 
@@ -24,7 +23,6 @@ export default function AirplaneGame() {
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const airplaneRef = useRef<Airplane | null>(null);
   const obstaclesRef = useRef<Obstacle[]>([]);
-  const collectiblesRef = useRef<Collectible[]>([]);
   const airportRef = useRef<Airport | null>(null);
   const frameIdRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
@@ -170,7 +168,6 @@ export default function AirplaneGame() {
       
       // Dispose of geometries and materials
       obstaclesRef.current.forEach(obstacle => obstacle.dispose());
-      collectiblesRef.current.forEach(collectible => collectible.dispose());
       if (airplaneRef.current) airplaneRef.current.dispose();
       if (environmentRef.current) environmentRef.current.dispose();
       if (airportRef.current) airportRef.current.dispose();
@@ -232,9 +229,8 @@ export default function AirplaneGame() {
       // Transition to flight phase
       setGameState(prev => ({ ...prev, gamePhase: 'flight' }));
       
-      // Generate obstacles and collectibles once in flight
+      // Generate obstacles
       generateObstacles();
-      generateCollectibles();
     }
   };
   
@@ -257,28 +253,6 @@ export default function AirplaneGame() {
       }
     });
     
-    // Update collectibles - limit updates for better performance
-    collectiblesRef.current.forEach((collectible, index) => {
-      // Only update collectibles that are close to the player
-      if (collectible.mesh.position.distanceTo(airplanePosition) < 100) {
-        collectible.update(deltaTime);
-        
-        // Check for collisions with airplane
-        if (collectible.checkCollision(airplaneRef.current!.mesh)) {
-          // Remove collectible
-          sceneRef.current!.remove(collectible.mesh);
-          collectible.dispose();
-          collectiblesRef.current.splice(index, 1);
-          
-          // Increase score
-          setGameState(prev => ({ ...prev, score: prev.score + 10 }));
-          
-          // Add new collectible
-          addCollectible();
-        }
-      }
-    });
-    
     // Remove obstacles that are too far behind
     obstaclesRef.current = obstaclesRef.current.filter(obstacle => {
       if (obstacle.mesh.position.z > airplanePosition.z + 50) {
@@ -289,14 +263,17 @@ export default function AirplaneGame() {
       return true;
     });
     
-    // Add new obstacles if needed - but limit the number for better performance
+    // Add new obstacles if needed
     if (obstaclesRef.current.length < 5) {
       addObstacle();
     }
     
-    // Add new collectibles if needed - but limit the number for better performance
-    if (collectiblesRef.current.length < 3) {
-      addCollectible();
+    // Increase score based on distance flown
+    if (frameIdRef.current % 60 === 0) { // Update score every ~1 second
+      setGameState(prev => ({ 
+        ...prev, 
+        score: Math.floor(Math.abs(airplanePosition.z) / 10)
+      }));
     }
   };
   
@@ -332,12 +309,12 @@ export default function AirplaneGame() {
     
     const airplanePosition = airplaneRef.current.mesh.position;
     
-    // Limit to 5 obstacles for better performance
+    // Create obstacles
     for (let i = 0; i < 5; i++) {
       const obstacle = new Obstacle(
         new THREE.Vector3(
-          Math.random() * 40 - 20,
-          Math.random() * 10 + 10, // Higher altitude for obstacles
+          Math.random() * 60 - 30,
+          Math.random() * 20 + 10, // Higher altitude for obstacles
           airplanePosition.z - 100 - Math.random() * 100
         )
       );
@@ -353,49 +330,13 @@ export default function AirplaneGame() {
     const airplanePosition = airplaneRef.current.mesh.position;
     const obstacle = new Obstacle(
       new THREE.Vector3(
-        Math.random() * 40 - 20,
-        Math.random() * 10 + 10, // Higher altitude for obstacles
+        Math.random() * 60 - 30,
+        Math.random() * 20 + 10, // Higher altitude for obstacles
         airplanePosition.z - 200 - Math.random() * 50
       )
     );
     obstaclesRef.current.push(obstacle);
     sceneRef.current.add(obstacle.mesh);
-  };
-  
-  // Generate initial collectibles
-  const generateCollectibles = () => {
-    if (!sceneRef.current || !airplaneRef.current) return;
-    
-    const airplanePosition = airplaneRef.current.mesh.position;
-    
-    // Limit to 3 collectibles for better performance
-    for (let i = 0; i < 3; i++) {
-      const collectible = new Collectible(
-        new THREE.Vector3(
-          Math.random() * 30 - 15,
-          Math.random() * 10 + 10, // Higher altitude for collectibles
-          airplanePosition.z - 50 - Math.random() * 50
-        )
-      );
-      collectiblesRef.current.push(collectible);
-      sceneRef.current.add(collectible.mesh);
-    }
-  };
-  
-  // Add a new collectible
-  const addCollectible = () => {
-    if (!sceneRef.current || !airplaneRef.current) return;
-    
-    const airplanePosition = airplaneRef.current.mesh.position;
-    const collectible = new Collectible(
-      new THREE.Vector3(
-        Math.random() * 30 - 15,
-        Math.random() * 10 + 10, // Higher altitude for collectibles
-        airplanePosition.z - 100 - Math.random() * 50
-      )
-    );
-    collectiblesRef.current.push(collectible);
-    sceneRef.current.add(collectible.mesh);
   };
   
   // Restart game
@@ -407,18 +348,12 @@ export default function AirplaneGame() {
     airplaneRef.current.mesh.rotation.set(0, Math.PI, 0);
     airplaneRef.current.velocity.set(0, 0, 0);
     
-    // Clear obstacles and collectibles
+    // Clear obstacles
     obstaclesRef.current.forEach(obstacle => {
       sceneRef.current!.remove(obstacle.mesh);
       obstacle.dispose();
     });
     obstaclesRef.current = [];
-    
-    collectiblesRef.current.forEach(collectible => {
-      sceneRef.current!.remove(collectible.mesh);
-      collectible.dispose();
-    });
-    collectiblesRef.current = [];
     
     // Reset game state
     setGameState({
@@ -450,6 +385,7 @@ export default function AirplaneGame() {
       <div className="absolute top-0 left-0 p-4 bg-black bg-opacity-50 text-white">
         <p>Score: {gameState.score}</p>
         <p>Speed: {Math.round(gameState.speed)}</p>
+        <p>Altitude: {Math.round(gameState.playerPosition.y)}</p>
       </div>
       
       {/* Control Box */}
