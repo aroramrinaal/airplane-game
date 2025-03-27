@@ -39,6 +39,12 @@ export class Airplane {
       boost: false,
     };
     
+    // Initialize properties to avoid lint errors
+    this.propeller = new THREE.Mesh();
+    this.particleSystem = new THREE.BufferGeometry();
+    this.particlePositions = new Float32Array(this.particleCount * 3);
+    this.engineParticles = new THREE.Points(this.particleSystem);
+    
     this.createAirplane();
     this.createEngineParticles();
     
@@ -46,37 +52,37 @@ export class Airplane {
   }
   
   private createAirplane(): void {
-    // Create airplane body
-    const bodyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 4, 8);
+    // Create airplane body - simplified, more cartoonish
+    const bodyGeometry = new THREE.CylinderGeometry(0.6, 0.4, 4, 8);
     bodyGeometry.rotateX(Math.PI / 2); // Rotate to align with z-axis
     const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3366CC,
-      metalness: 0.3,
-      roughness: 0.5,
+      color: 0xFF5733, // Bright orange
+      metalness: 0.2,
+      roughness: 0.3,
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.castShadow = true;
     body.receiveShadow = true;
     this.mesh.add(body);
     
-    // Create wings
+    // Create wings - bright blue
     const wingGeometry = new THREE.BoxGeometry(7, 0.2, 1.5);
     const wingMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3366CC,
-      metalness: 0.3,
-      roughness: 0.5,
+      color: 0x4287f5, // Bright blue
+      metalness: 0.2,
+      roughness: 0.3,
     });
     const wings = new THREE.Mesh(wingGeometry, wingMaterial);
     wings.castShadow = true;
     wings.receiveShadow = true;
     this.mesh.add(wings);
     
-    // Create tail
+    // Create tail - yellow
     const tailGeometry = new THREE.BoxGeometry(2, 0.2, 1);
     const tailMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3366CC,
-      metalness: 0.3,
-      roughness: 0.5,
+      color: 0xFFC300, // Golden yellow
+      metalness: 0.2,
+      roughness: 0.3,
     });
     const tail = new THREE.Mesh(tailGeometry, tailMaterial);
     tail.position.set(0, 0, 1.5);
@@ -84,12 +90,12 @@ export class Airplane {
     tail.receiveShadow = true;
     this.mesh.add(tail);
     
-    // Create vertical stabilizer
+    // Create vertical stabilizer - red
     const stabilizerGeometry = new THREE.BoxGeometry(0.2, 1, 1);
     const stabilizerMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3366CC,
-      metalness: 0.3,
-      roughness: 0.5,
+      color: 0xE74C3C, // Bright red
+      metalness: 0.2,
+      roughness: 0.3,
     });
     const stabilizer = new THREE.Mesh(stabilizerGeometry, stabilizerMaterial);
     stabilizer.position.set(0, 0.5, 1.5);
@@ -108,31 +114,31 @@ export class Airplane {
     this.propeller.position.set(0, 0, -2);
     this.mesh.add(this.propeller);
     
-    // Create cockpit
-    const cockpitGeometry = new THREE.SphereGeometry(0.5, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    // Create cockpit - blue transparent
+    const cockpitGeometry = new THREE.SphereGeometry(0.6, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
     const cockpitMaterial = new THREE.MeshStandardMaterial({
-      color: 0x88CCFF,
+      color: 0x25CCF7, // Bright cyan
       transparent: true,
       opacity: 0.7,
       metalness: 0.9,
       roughness: 0.1,
     });
     const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
-    cockpit.position.set(0, 0.3, -1);
+    cockpit.position.set(0, 0.4, -1);
     cockpit.rotation.x = Math.PI / 2;
     cockpit.castShadow = true;
     this.mesh.add(cockpit);
     
-    // Create landing gear
-    this.createLandingGear();
+    // Create simplified landing gear
+    this.createSimplifiedLandingGear();
   }
   
-  private createLandingGear(): void {
-    // Create main landing gear (wheels)
-    const wheelGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+  private createSimplifiedLandingGear(): void {
+    // Create main landing gear (wheels) - thicker and more cartoonish
+    const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 8);
     const wheelMaterial = new THREE.MeshStandardMaterial({
       color: 0x333333,
-      metalness: 0.5,
+      metalness: 0.3,
       roughness: 0.7,
     });
     
@@ -157,33 +163,6 @@ export class Airplane {
     frontWheel.scale.set(0.6, 0.6, 0.6); // Smaller front wheel
     frontWheel.castShadow = true;
     this.mesh.add(frontWheel);
-    
-    // Landing gear struts
-    const strutGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8);
-    const strutMaterial = new THREE.MeshStandardMaterial({
-      color: 0x888888,
-      metalness: 0.7,
-      roughness: 0.3,
-    });
-    
-    // Left strut
-    const leftStrut = new THREE.Mesh(strutGeometry, strutMaterial);
-    leftStrut.position.set(-1.5, -0.4, 0);
-    leftStrut.castShadow = true;
-    this.mesh.add(leftStrut);
-    
-    // Right strut
-    const rightStrut = new THREE.Mesh(strutGeometry, strutMaterial);
-    rightStrut.position.set(1.5, -0.4, 0);
-    rightStrut.castShadow = true;
-    this.mesh.add(rightStrut);
-    
-    // Front strut
-    const frontStrut = new THREE.Mesh(strutGeometry, strutMaterial);
-    frontStrut.position.set(0, -0.4, -1.5);
-    frontStrut.scale.set(0.6, 0.6, 0.6); // Smaller front strut
-    frontStrut.castShadow = true;
-    this.mesh.add(frontStrut);
   }
   
   private createEngineParticles(): void {

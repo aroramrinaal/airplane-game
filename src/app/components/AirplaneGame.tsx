@@ -7,8 +7,6 @@ import { Airplane } from './entities/Airplane';
 import { Obstacle } from './entities/Obstacle';
 import { Collectible } from './entities/Collectible';
 import { Airport } from './entities/Airport';
-import { StatsMonitor } from './ui/StatsMonitor';
-import { MobileControls } from './ui/MobileControls';
 import { ControlBox } from './ui/ControlBox';
 
 interface GameState {
@@ -32,7 +30,6 @@ export default function AirplaneGame() {
   const lastTimeRef = useRef<number>(0);
   const environmentRef = useRef<SkyEnvironment | null>(null);
   
-  const [isMobile, setIsMobile] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     isGameOver: false,
@@ -44,9 +41,6 @@ export default function AirplaneGame() {
   // Initialize the game
   useEffect(() => {
     if (!containerRef.current) return;
-    
-    // Check if mobile
-    setIsMobile(window.innerWidth < 768);
     
     // Create scene
     const scene = new THREE.Scene();
@@ -65,7 +59,7 @@ export default function AirplaneGame() {
     // Create renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for better performance
     renderer.shadowMap.enabled = true;
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
@@ -91,7 +85,6 @@ export default function AirplaneGame() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      setIsMobile(window.innerWidth < 768);
     };
     
     window.addEventListener('resize', handleResize);
@@ -181,7 +174,7 @@ export default function AirplaneGame() {
   // Animation loop
   const animate = () => {
     const currentTime = performance.now();
-    const deltaTime = (currentTime - lastTimeRef.current) / 1000;
+    const deltaTime = Math.min((currentTime - lastTimeRef.current) / 1000, 0.1); // Cap delta time to prevent large jumps
     lastTimeRef.current = currentTime;
     
     if (
@@ -228,7 +221,7 @@ export default function AirplaneGame() {
     airplaneRef.current.updateTakeoff(deltaTime);
     
     // Check if airplane has taken off
-    if (airplaneRef.current.mesh.position.z < -100 && airplaneRef.current.mesh.position.y > 10) {
+    if (airplaneRef.current.mesh.position.z < -50 && airplaneRef.current.mesh.position.y > 5) {
       // Transition to flight phase
       setGameState(prev => ({ ...prev, gamePhase: 'flight' }));
       
@@ -257,22 +250,25 @@ export default function AirplaneGame() {
       }
     });
     
-    // Update collectibles
+    // Update collectibles - limit updates for better performance
     collectiblesRef.current.forEach((collectible, index) => {
-      collectible.update(deltaTime);
-      
-      // Check for collisions with airplane
-      if (collectible.checkCollision(airplaneRef.current!.mesh)) {
-        // Remove collectible
-        sceneRef.current!.remove(collectible.mesh);
-        collectible.dispose();
-        collectiblesRef.current.splice(index, 1);
+      // Only update collectibles that are close to the player
+      if (collectible.mesh.position.distanceTo(airplanePosition) < 100) {
+        collectible.update(deltaTime);
         
-        // Increase score
-        setGameState(prev => ({ ...prev, score: prev.score + 10 }));
-        
-        // Add new collectible
-        addCollectible();
+        // Check for collisions with airplane
+        if (collectible.checkCollision(airplaneRef.current!.mesh)) {
+          // Remove collectible
+          sceneRef.current!.remove(collectible.mesh);
+          collectible.dispose();
+          collectiblesRef.current.splice(index, 1);
+          
+          // Increase score
+          setGameState(prev => ({ ...prev, score: prev.score + 10 }));
+          
+          // Add new collectible
+          addCollectible();
+        }
       }
     });
     
@@ -286,13 +282,13 @@ export default function AirplaneGame() {
       return true;
     });
     
-    // Add new obstacles if needed
-    if (obstaclesRef.current.length < 10) {
+    // Add new obstacles if needed - but limit the number for better performance
+    if (obstaclesRef.current.length < 5) {
       addObstacle();
     }
     
-    // Add new collectibles if needed
-    if (collectiblesRef.current.length < 5) {
+    // Add new collectibles if needed - but limit the number for better performance
+    if (collectiblesRef.current.length < 3) {
       addCollectible();
     }
   };
@@ -329,12 +325,13 @@ export default function AirplaneGame() {
     
     const airplanePosition = airplaneRef.current.mesh.position;
     
-    for (let i = 0; i < 10; i++) {
+    // Limit to 5 obstacles for better performance
+    for (let i = 0; i < 5; i++) {
       const obstacle = new Obstacle(
         new THREE.Vector3(
           Math.random() * 40 - 20,
           Math.random() * 10 + 10, // Higher altitude for obstacles
-          airplanePosition.z - 200 - Math.random() * 200
+          airplanePosition.z - 100 - Math.random() * 100
         )
       );
       obstaclesRef.current.push(obstacle);
@@ -351,7 +348,7 @@ export default function AirplaneGame() {
       new THREE.Vector3(
         Math.random() * 40 - 20,
         Math.random() * 10 + 10, // Higher altitude for obstacles
-        airplanePosition.z - 300 - Math.random() * 100
+        airplanePosition.z - 200 - Math.random() * 50
       )
     );
     obstaclesRef.current.push(obstacle);
@@ -364,12 +361,13 @@ export default function AirplaneGame() {
     
     const airplanePosition = airplaneRef.current.mesh.position;
     
-    for (let i = 0; i < 5; i++) {
+    // Limit to 3 collectibles for better performance
+    for (let i = 0; i < 3; i++) {
       const collectible = new Collectible(
         new THREE.Vector3(
           Math.random() * 30 - 15,
           Math.random() * 10 + 10, // Higher altitude for collectibles
-          airplanePosition.z - 150 - Math.random() * 100
+          airplanePosition.z - 50 - Math.random() * 50
         )
       );
       collectiblesRef.current.push(collectible);
@@ -386,39 +384,11 @@ export default function AirplaneGame() {
       new THREE.Vector3(
         Math.random() * 30 - 15,
         Math.random() * 10 + 10, // Higher altitude for collectibles
-        airplanePosition.z - 200 - Math.random() * 100
+        airplanePosition.z - 100 - Math.random() * 50
       )
     );
     collectiblesRef.current.push(collectible);
     sceneRef.current.add(collectible.mesh);
-  };
-  
-  // Handle mobile joystick movement
-  const handleJoystickMove = (x: number, y: number) => {
-    if (!airplaneRef.current) return;
-    
-    airplaneRef.current.controls.left = x < -0.2;
-    airplaneRef.current.controls.right = x > 0.2;
-    airplaneRef.current.controls.up = y < -0.2;
-    airplaneRef.current.controls.down = y > 0.2;
-  };
-  
-  // Handle mobile button press
-  const handleButtonPress = (buttonId: string) => {
-    if (!airplaneRef.current) return;
-    
-    if (buttonId === 'boost') {
-      airplaneRef.current.controls.boost = true;
-    }
-  };
-  
-  // Handle mobile button release
-  const handleButtonRelease = (buttonId: string) => {
-    if (!airplaneRef.current) return;
-    
-    if (buttonId === 'boost') {
-      airplaneRef.current.controls.boost = false;
-    }
   };
   
   // Restart game
@@ -469,17 +439,11 @@ export default function AirplaneGame() {
   
   return (
     <div ref={containerRef} className="w-full h-screen relative">
-      {/* Stats Monitor */}
-      <StatsMonitor
-        showFPS
-        showMobileStatus
-        showPosition
-        showScore
-        showSpeed
-        score={gameState.score}
-        position={gameState.playerPosition}
-        speed={gameState.speed}
-      />
+      {/* Game HUD */}
+      <div className="absolute top-0 left-0 p-4 bg-black bg-opacity-50 text-white">
+        <p>Score: {gameState.score}</p>
+        <p>Speed: {Math.round(gameState.speed)}</p>
+      </div>
       
       {/* Control Box */}
       <ControlBox
@@ -496,19 +460,6 @@ export default function AirplaneGame() {
       
       {/* Takeoff Instructions */}
       {getTakeoffInstructions()}
-      
-      {/* Mobile Controls */}
-      {isMobile && (
-        <MobileControls
-          joystick
-          buttons={[
-            { id: 'boost', label: 'Boost', position: 'right' },
-          ]}
-          onJoystickMove={handleJoystickMove}
-          onButtonPress={handleButtonPress}
-          onButtonRelease={handleButtonRelease}
-        />
-      )}
       
       {/* Game Over Screen */}
       {gameState.isGameOver && (
