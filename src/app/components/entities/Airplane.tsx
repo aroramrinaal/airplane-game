@@ -228,32 +228,43 @@ export class Airplane {
     // Calculate current speed
     const currentSpeed = Math.abs(this.velocity.z);
     
-    // Allow pitch control only if speed is sufficient
-    if (currentSpeed > this.TAKEOFF_SPEED / 2) {
-      if (this.controls.up) {
-        // Pull up to take off
-        this.mesh.rotation.x -= this.ROTATION_SPEED * 0.5 * deltaTime;
+    // Only apply physics if the airplane is actually moving
+    if (currentSpeed > 0.1) {
+      // Allow pitch control only if speed is sufficient
+      if (currentSpeed > this.TAKEOFF_SPEED / 2) {
+        if (this.controls.up) {
+          // Pull up to take off
+          this.mesh.rotation.x -= this.ROTATION_SPEED * 0.5 * deltaTime;
+          
+          // Limit rotation
+          this.mesh.rotation.x = Math.max(this.mesh.rotation.x, -Math.PI / 4);
+        }
         
-        // Limit rotation
-        this.mesh.rotation.x = Math.max(this.mesh.rotation.x, -Math.PI / 4);
+        // Apply lift based on speed and pitch
+        const liftFactor = (currentSpeed / this.TAKEOFF_SPEED) * Math.sin(-this.mesh.rotation.x);
+        this.velocity.y += liftFactor * 5 * deltaTime;
       }
       
-      // Apply lift based on speed and pitch
-      const liftFactor = (currentSpeed / this.TAKEOFF_SPEED) * Math.sin(-this.mesh.rotation.x);
-      this.velocity.y += liftFactor * 5 * deltaTime;
+      // Apply gravity
+      this.velocity.y -= 9.8 * deltaTime;
+      
+      // Update position
+      this.mesh.position.add(this.velocity.clone().multiplyScalar(deltaTime));
+    } else {
+      // Reset vertical velocity when stationary to prevent unwanted movement
+      this.velocity.y = 0;
+      
+      // Ensure plane stays perfectly on the runway when stationary
+      if (Math.abs(this.mesh.position.y - 0.5) < 0.1) {
+        this.mesh.position.y = 0.5;
+      }
     }
-    
-    // Apply gravity
-    this.velocity.y -= 9.8 * deltaTime;
     
     // Prevent going below the ground
     if (this.mesh.position.y < 0.5 && this.velocity.y < 0) {
       this.mesh.position.y = 0.5;
       this.velocity.y = 0;
     }
-    
-    // Update position
-    this.mesh.position.add(this.velocity.clone().multiplyScalar(deltaTime));
     
     // Update engine particles
     this.updateEngineParticles(deltaTime, currentSpeed / this.MAX_SPEED);

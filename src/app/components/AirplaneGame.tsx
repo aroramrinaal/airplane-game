@@ -74,8 +74,14 @@ export default function AirplaneGame() {
     
     // Create airplane - position it at the start of the runway
     const airplane = new Airplane(scene);
+    
+    // Position the airplane precisely on the runway
     airplane.mesh.position.set(0, 0.5, 0); // Slightly above the runway
-    airplane.mesh.rotation.y = Math.PI; // Face down the runway
+    airplane.mesh.rotation.set(0, Math.PI, 0); // Face down the runway
+    
+    // Ensure velocity is zero initially
+    airplane.velocity.set(0, 0, 0);
+    
     airplaneRef.current = airplane;
     
     // Handle window resize
@@ -220,7 +226,8 @@ export default function AirplaneGame() {
     // Update airplane with limited controls during takeoff
     airplaneRef.current.updateTakeoff(deltaTime);
     
-    // Check if airplane has taken off
+    // Check if airplane has taken off - only consider it taken off
+    // if it has moved a significant distance and gained altitude
     if (airplaneRef.current.mesh.position.z < -50 && airplaneRef.current.mesh.position.y > 5) {
       // Transition to flight phase
       setGameState(prev => ({ ...prev, gamePhase: 'flight' }));
